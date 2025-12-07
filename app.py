@@ -38,8 +38,8 @@ def index():
             .btn-success:hover { background: #218838; }
             .btn-warning { background: #ffc107; color: #333; }
             .btn-warning:hover { background: #e0a800; }
-            . api-list { text-align: left; margin: 30px 0; }
-            . api-list li { margin: 10px 0; }
+            .api-list { text-align: left; margin: 30px 0; }
+            .api-list li { margin: 10px 0; }
         </style>
     </head>
     <body>
@@ -77,12 +77,12 @@ def analyze_route():
         return jsonify({'error': 'JSON body expected'}), 400
 
     result = analyze(data)
-    if result. get('error'):
+    if result.get('error'):
         return jsonify({'error': result['error']}), 500
 
     result['active_rule_descriptions'] = [
         {'id': r, 'description': RULE_DESCRIPTIONS[r]} 
-        for r in result. get('active_rules', [])
+        for r in result.get('active_rules', [])
     ]
 
     user_id = data.get('user_id', 'anonymous')
@@ -95,7 +95,7 @@ def analyze_route():
         'timestamp': datetime.now().isoformat()
     })
 
-@app. route("/history")
+@app.route("/history")
 def history():
     user_id = request.args.get('user_id', 'anonymous')
     limit = int(request.args.get('limit', 10))
@@ -176,7 +176,7 @@ def membership_plots():
     """
     return html
 
-@app. route("/rules")
+@app.route("/rules")
 def rules():
     return jsonify({
         'total_rules': len(RULE_DESCRIPTIONS),
@@ -205,7 +205,7 @@ python validate_model.py
     with open(report_path, 'r', encoding='utf-8') as f:
         return f.read()
 
-@app. route("/dashboard")
+@app.route("/dashboard")
 def dashboard():
     return render_template('dashboard.html')
 
@@ -268,4 +268,4 @@ if __name__ == "__main__":
     print("   python validate_model.py")
     print("="*70 + "\n")
     
-    app.run(debug=True, host='0.0.0. 0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)
