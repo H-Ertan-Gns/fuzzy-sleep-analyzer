@@ -268,4 +268,6 @@ if __name__ == "__main__":
     print("   python validate_model.py")
     print("="*70 + "\n")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Debug mode sadece development ortamında (güvenlik için)
+    debug_mode = os.environ.get('FLASK_ENV') == 'development'
+    app.run(debug=debug_mode, host='0.0.0.0', port=5000)

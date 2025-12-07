@@ -41,7 +41,7 @@ def trapmf(x, params):
     elif b <= x <= c:
         return 1.0
     else:  # c < x < d
-        return (d - x) / (d - a)
+        return (d - x) / (d - c)
 
 # Üyelik fonksiyonları tanımları
 MEMBERSHIP_FUNCTIONS = {
