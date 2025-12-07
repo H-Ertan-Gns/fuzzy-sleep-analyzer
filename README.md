@@ -1,4 +1,4 @@
-# 📘 FUZZY SLEEP & STRESS ANALYZER
+# 📘Bulanık Mantık ile Stres ve Uyku Kalitesi Tahmini
 
 ## 🎯 Proje Nedir?
 
