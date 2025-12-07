@@ -1,7 +1,10 @@
 """
 Gelişmiş Flask API + Dashboard + Model Doğrulama
 """
-from flask import Flask, request, jsonify, send_file, render_template, send_from_directory
+from flask import (
+    Flask, request, jsonify, send_file, 
+    render_template, send_from_directory
+)
 from fuzzy_model import analyze, get_membership_plots, RULE_DESCRIPTIONS
 from database import save_analysis, get_history, get_trend_data
 from pdf_report import create_pdf_report

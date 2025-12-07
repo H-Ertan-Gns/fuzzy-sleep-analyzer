@@ -11,6 +11,11 @@ import io
 import base64
 
 
+# Constants
+DEFAULT_DEFUZZ_VALUE = 50.0  # Default value when defuzzification fails
+ACTIVATION_THRESHOLD = 0.01   # Minimum activation level for a rule to be considered
+
+
 # Membership fonksiyonları
 
 def trimf(x, abc):
@@ -268,7 +273,7 @@ def defuzzify_centroid(output_memberships):
     
     # Centroid hesapla
     if np.sum(aggregated) == 0:
-        return 50.0  # Default value
+        return DEFAULT_DEFUZZ_VALUE  # Default value
     
     centroid = np.sum(x_range * aggregated) / np.sum(aggregated)
     return centroid
@@ -301,7 +306,7 @@ def defuzzify_quality_centroid(output_memberships):
             aggregated = np.maximum(aggregated, clipped)
     
     if np.sum(aggregated) == 0:
-        return 50.0
+        return DEFAULT_DEFUZZ_VALUE
     
     centroid = np.sum(x_range * aggregated) / np.sum(aggregated)
     return centroid
@@ -364,7 +369,7 @@ def analyze(inputs):
         for rule in FUZZY_RULES:
             activation = evaluate_rule(rule, fuzzy_inputs)
             
-            if activation > 0.01:  # Threshold
+            if activation > ACTIVATION_THRESHOLD:  # Threshold
                 active_rules.append(rule['id'])
                 
                 # Çıktı üyelik derecelerini güncelle (max aggregation)

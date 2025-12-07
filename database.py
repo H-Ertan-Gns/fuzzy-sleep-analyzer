@@ -211,9 +211,5 @@ def get_trend_data(user_id='anonymous', days=7):
     return trends
 
 
-# İlk import'ta DB'yi başlat
-if __name__ != "__main__":
-    try:
-        init_db()
-    except Exception as e:
-        print(f"⚠️ Veritabanı başlatma hatası: {e}")
+# Database is initialized when needed (on first save_analysis or explicit init_db call)
+# This avoids side effects during module import
