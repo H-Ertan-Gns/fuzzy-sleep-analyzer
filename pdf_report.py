@@ -108,7 +108,7 @@ def create_pdf_report(inputs, results):
     
     # Stres seviyesi yorumu
     if stress_level < 30:
-        stress_comment = "Düşük - İyi durumdaSınız"
+        stress_comment = "Düşük - İyi durumdasınız"
         stress_color = colors.green
     elif stress_level < 70:
         stress_comment = "Orta - Dikkat edilmeli"

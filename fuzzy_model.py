@@ -42,7 +42,7 @@ def trapmf(x, abcd):
     elif a < x < b:
         return (x - a) / (b - a)
     else:  # c < x < d
-        return (d - x) / (d - a)
+        return (d - x) / (d - c)
 
 
 # Üyelik fonksiyonları tanımları
