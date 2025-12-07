@@ -1,1 +1,34 @@
- data/Sleep_health_and_lifestyle_dataset.csv
+# Dataset
+data/Sleep_health_and_lifestyle_dataset.csv
+
+# Database
+data/*.db
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+tmp/
+
+# Reports and outputs
+static/validation_*.html
+static/validation_*.png
+

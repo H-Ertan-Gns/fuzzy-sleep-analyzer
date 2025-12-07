@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuzzy Sleep & Stress Analyzer - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group small {
+            display: block;
+            color: #999;
+            margin-top: 5px;
+            font-size: 0.85em;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .metric {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 5px solid #667eea;
+        }
+
+        .metric h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .metric .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+            margin: 10px 0;
+        }
+
+        .metric .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .status.low, .status.good {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.medium, .status.average {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status.high, .status.poor {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .recommendations {
+            margin-top: 20px;
+        }
+
+        .recommendations h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .recommendations ul {
+            list-style: none;
+        }
+
+        .recommendations li {
+            background: #f0f7ff;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+        }
+
+        .active-rules {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e7f3ff;
+            border-radius: 6px;
+        }
+
+        .active-rules h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .active-rules .rule {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            margin: 5px;
+            font-size: 0.9em;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .nav-links {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .nav-links a {
+            display: inline-block;
+            margin: 0 10px;
+            padding: 10px 20px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 Bulanık Mantık Uyku & Stres Analiz Sistemi</h1>
+            <p>Yapay zeka destekli kişiselleştirilmiş sağlık analizi</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Form -->
+            <div class="card">
+                <h2>📝 Verilerinizi Girin</h2>
+                <form id="analysisForm">
+                    <div class="form-group">
+                        <label for="sleep_hours">💤 Uyku Süresi (saat)</label>
+                        <input type="number" id="sleep_hours" name="sleep_hours" 
+                               min="0" max="12" step="0.5" value="7" required>
+                        <small>Günlük ortalama uyku süreniz (0-12 saat)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="caffeine_mg">☕ Kafein Tüketimi (mg)</label>
+                        <input type="number" id="caffeine_mg" name="caffeine_mg" 
+                               min="0" max="500" step="10" value="100" required>
+                        <small>Günlük kafein miktarı (1 fincan kahve ≈ 100mg)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exercise_min">🏃 Egzersiz Süresi (dakika)</label>
+                        <input type="number" id="exercise_min" name="exercise_min" 
+                               min="0" max="120" step="5" value="30" required>
+                        <small>Günlük fiziksel aktivite süresi (0-120 dakika)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="work_stress">💼 İş Stresi Seviyesi (0-10)</label>
+                        <input type="number" id="work_stress" name="work_stress" 
+                               min="0" max="10" step="0.5" value="5" required>
+                        <small>İş yerindeki stres seviyeniz (0=yok, 10=maksimum)</small>
+                    </div>
+
+                    <button type="submit" class="btn" id="submitBtn">
+                        🔍 Analiz Et
+                    </button>
+                </form>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Analiz yapılıyor...</p>
+                </div>
+
+                <div class="error" id="error"></div>
+            </div>
+
+            <!-- Results -->
+            <div class="card">
+                <h2>📊 Analiz Sonuçları</h2>
+                <div class="results" id="results">
+                    <div class="metric">
+                        <h3>🔴 Stres Seviyesi</h3>
+                        <div class="value" id="stressValue">-</div>
+                        <span class="status" id="stressStatus">-</span>
+                    </div>
+
+                    <div class="metric">
+                        <h3>🔵 Uyku Kalitesi</h3>
+                        <div class="value" id="sleepQualityValue">-</div>
+                        <span class="status" id="sleepQualityStatus">-</span>
+                    </div>
+
+                    <div class="recommendations">
+                        <h3>💡 Kişiselleştirilmiş Tavsiyeler</h3>
+                        <ul id="recommendationsList"></ul>
+                    </div>
+
+                    <div class="active-rules" id="activeRulesSection" style="display: none;">
+                        <h4>📋 Aktif Fuzzy Kuralları</h4>
+                        <div id="activeRulesList"></div>
+                    </div>
+                </div>
+
+                <div id="initialMessage" style="text-align: center; color: #999; padding: 40px;">
+                    <p style="font-size: 3em;">📈</p>
+                    <p>Analiz sonuçları burada görünecek</p>
+                    <p style="margin-top: 10px; font-size: 0.9em;">Formu doldurup "Analiz Et" butonuna tıklayın</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-links">
+            <a href="/">🏠 Ana Sayfa</a>
+            <a href="/membership-plots">📈 Üyelik Fonksiyonları</a>
+            <a href="/validation-report">✅ Model Doğrulama</a>
+            <a href="/api-docs">📖 API Dökümanı</a>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('analysisForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const results = document.getElementById('results');
+        const initialMessage = document.getElementById('initialMessage');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // UI güncelle
+            submitBtn.disabled = true;
+            loading.classList.add('show');
+            error.classList.remove('show');
+            results.classList.remove('show');
+
+            // Form verilerini al
+            const formData = {
+                sleep_hours: parseFloat(document.getElementById('sleep_hours').value),
+                caffeine_mg: parseFloat(document.getElementById('caffeine_mg').value),
+                exercise_min: parseFloat(document.getElementById('exercise_min').value),
+                work_stress: parseFloat(document.getElementById('work_stress').value)
+            };
+
+            try {
+                // API'ye POST isteği gönder
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.result.error) {
+                    throw new Error(data.result.error);
+                }
+
+                // Sonuçları göster
+                displayResults(data.result);
+
+            } catch (err) {
+                console.error('Error:', err);
+                error.textContent = `Hata: ${err.message}`;
+                error.classList.add('show');
+            } finally {
+                submitBtn.disabled = false;
+                loading.classList.remove('show');
+            }
+        });
+
+        function displayResults(result) {
+            // İlk mesajı gizle
+            initialMessage.style.display = 'none';
+
+            // Stres seviyesi
+            const stress = result.stress;
+            document.getElementById('stressValue').textContent = stress.toFixed(1) + '/100';
+            
+            const stressStatus = document.getElementById('stressStatus');
+            if (stress < 40) {
+                stressStatus.textContent = 'Düşük ✅';
+                stressStatus.className = 'status low';
+            } else if (stress < 70) {
+                stressStatus.textContent = 'Orta ⚠️';
+                stressStatus.className = 'status medium';
+            } else {
+                stressStatus.textContent = 'Yüksek ❌';
+                stressStatus.className = 'status high';
+            }
+
+            // Uyku kalitesi
+            const sleepQuality = result.sleep_quality;
+            document.getElementById('sleepQualityValue').textContent = sleepQuality.toFixed(1) + '/100';
+            
+            const sleepStatus = document.getElementById('sleepQualityStatus');
+            if (sleepQuality > 70) {
+                sleepStatus.textContent = 'İyi ✅';
+                sleepStatus.className = 'status good';
+            } else if (sleepQuality > 45) {
+                sleepStatus.textContent = 'Orta ⚠️';
+                sleepStatus.className = 'status average';
+            } else {
+                sleepStatus.textContent = 'Kötü ❌';
+                sleepStatus.className = 'status poor';
+            }
+
+            // Tavsiyeler
+            const recommendationsList = document.getElementById('recommendationsList');
+            recommendationsList.innerHTML = '';
+            result.recommendations.forEach(rec => {
+                const li = document.createElement('li');
+                li.textContent = rec;
+                recommendationsList.appendChild(li);
+            });
+
+            // Aktif kurallar
+            if (result.active_rules && result.active_rules.length > 0) {
+                const activeRulesSection = document.getElementById('activeRulesSection');
+                const activeRulesList = document.getElementById('activeRulesList');
+                
+                activeRulesList.innerHTML = '';
+                result.active_rules.forEach(rule => {
+                    const span = document.createElement('span');
+                    span.className = 'rule';
+                    span.textContent = rule;
+                    activeRulesList.appendChild(span);
+                });
+                
+                activeRulesSection.style.display = 'block';
+            }
+
+            // Sonuçları göster
+            results.classList.add('show');
+        }
+    </script>
+</body>
+</html>
