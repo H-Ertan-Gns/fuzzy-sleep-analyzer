@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*. egg-info/
+.installed. cfg
+*.egg
+
+# Database
+data/*. db
+*.sqlite3
+
+# Kaggle Dataset (büyük dosya)
+data/Sleep_health_and_lifestyle_dataset.csv
+data/*. csv
+
+# Generated files
+static/validation_plots.png
+static/validation_report.html
+
+# IDEs
+.vscode/
+. idea/
+*.swp
+*. swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Flask
+instance/
+.webassets-cache
+
+# Environment
+.env
+.env.local
