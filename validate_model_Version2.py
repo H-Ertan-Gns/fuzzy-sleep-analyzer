@@ -3,8 +3,10 @@ Kaggle Sleep Health Dataset ile fuzzy model doğrulaması
 - Gerçek veri vs fuzzy tahmin karşılaştırması
 - Doğruluk metrikleri (MAE, RMSE, R²)
 - Görselleştirme ve HTML rapor
+Python 3.9 Uyumlu
 """
 
+from typing import Dict, List, Optional
 import pandas as pd
 import numpy as np
 from fuzzy_model import analyze
@@ -91,7 +93,12 @@ def validate_model(df):
         inputs = map_to_fuzzy_inputs(row)
         
         # Fuzzy analiz yap
-        output = analyze(inputs)
+        output = analyze(
+            sleep_hours=inputs['sleep_hours'],
+            caffeine_mg=inputs['caffeine_mg'],
+            exercise_min=inputs['exercise_min'],
+            work_stress=inputs['work_stress']
+        )
         
         # Gerçek değerler (Kaggle'dan)
         # Stress Level 0-10 arası → 0-100'e çevir
