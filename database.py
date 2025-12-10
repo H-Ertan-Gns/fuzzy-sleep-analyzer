@@ -1,8 +1,10 @@
 """
 SQLite Database işlemleri
 Analiz kayıtları ve trend verileri
+Python 3.9 Uyumlu
 """
 
+from typing import Dict, List, Optional
 import sqlite3
 import json
 from datetime import datetime, timedelta
@@ -32,6 +34,7 @@ def init_db():
             caffeine_mg REAL,
             exercise_min REAL,
             work_stress REAL,
+            environmental_score REAL,
             stress_level REAL,
             sleep_quality REAL,
             active_rules TEXT,
@@ -51,7 +54,7 @@ def init_db():
     print(f"✅ Veritabanı hazır: {DB_PATH}")
 
 
-def save_analysis(inputs, results, user_id='anonymous'):
+def save_analysis(inputs: Dict, results: Dict, user_id: str = 'anonymous') -> int:
     """
     Analiz sonucunu veritabanına kaydet
     
@@ -76,16 +79,17 @@ def save_analysis(inputs, results, user_id='anonymous'):
     cursor.execute('''
         INSERT INTO analysis_history 
         (user_id, sleep_hours, caffeine_mg, exercise_min, work_stress, 
-         stress_level, sleep_quality, active_rules, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         environmental_score, stress_level, sleep_quality, active_rules, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         user_id,
         inputs.get('sleep_hours'),
         inputs.get('caffeine_mg'),
         inputs.get('exercise_min'),
         inputs.get('work_stress'),
-        results.get('stress_level'),
-        results.get('sleep_quality'),
+        inputs.get('environmental_score', 50.0),
+        results.get('stress_level', results.get('stress', 50.0)),
+        results.get('sleep_quality', 50.0),
         active_rules_json,
         datetime.now().isoformat()
     ))
@@ -97,7 +101,7 @@ def save_analysis(inputs, results, user_id='anonymous'):
     return record_id
 
 
-def get_history(user_id='anonymous', limit=10):
+def get_history(user_id: str = 'anonymous', limit: int = 10) -> List[Dict]:
     """
     Kullanıcının analiz geçmişini getir
     
@@ -119,7 +123,7 @@ def get_history(user_id='anonymous', limit=10):
     cursor.execute('''
         SELECT 
             id, user_id, timestamp, 
-            sleep_hours, caffeine_mg, exercise_min, work_stress,
+            sleep_hours, caffeine_mg, exercise_min, work_stress, environmental_score,
             stress_level, sleep_quality, active_rules
         FROM analysis_history
         WHERE user_id = ?
@@ -133,7 +137,7 @@ def get_history(user_id='anonymous', limit=10):
     # Row objelerini dict'e çevir
     records = []
     for row in rows:
-        records.append({
+        record = {
             'id': row['id'],
             'user_id': row['user_id'],
             'timestamp': row['timestamp'],
@@ -148,12 +152,16 @@ def get_history(user_id='anonymous', limit=10):
                 'sleep_quality': row['sleep_quality']
             },
             'active_rules': row['active_rules']  # JSON string olarak
-        })
+        }
+        # environmental_score varsa ekle
+        if 'environmental_score' in row.keys():
+            record['inputs']['environmental_score'] = row['environmental_score']
+        records.append(record)
     
     return records
 
 
-def get_trend_data(user_id='anonymous', days=7):
+def get_trend_data(user_id: str = 'anonymous', days: int = 7) -> List[Dict]:
     """
     Son N günün trend verilerini getir
     

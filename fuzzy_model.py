@@ -1,8 +1,10 @@
 """
-Manuel Fuzzy Logic Motoru
+Manuel Fuzzy Logic Motoru - Python 3.9 Uyumlu
 Bulanık mantık sistemi - scikit-fuzzy kullanmadan
+README.md'de belirtilen 10 kural tam implementasyonu
 """
 
+from typing import Dict, List, Tuple, Optional
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -11,35 +13,14 @@ import io
 import base64
 
 
-# Constants
-DEFAULT_DEFUZZ_VALUE = 50.0  # Default value when defuzzification fails
-ACTIVATION_THRESHOLD = 0.01   # Minimum activation level for a rule to be considered
+# Üyelik fonksiyonları
 
-
-# Membership fonksiyonları
-
-def trimf(x, abc):
-    """
-    Triangular membership function
-    abc = [a, b, c] where a <= b <= c
-    """
-    a, b, c = abc
-    if x <= a or x >= c:
-        return 0.0
-    elif x == b:
-        return 1.0
-    elif a < x < b:
-        return (x - a) / (b - a)
-    else:  # b < x < c
-        return (c - x) / (c - b)
-
-
-def trapmf(x, abcd):
+def trapmf(x: float, params: List[float]) -> float:
     """
     Trapezoidal membership function
-    abcd = [a, b, c, d] where a <= b <= c <= d
+    params = [a, b, c, d] where a <= b <= c <= d
     """
-    a, b, c, d = abcd
+    a, b, c, d = params
     if x <= a or x >= d:
         return 0.0
     elif b <= x <= c:
@@ -50,220 +31,237 @@ def trapmf(x, abcd):
         return (d - x) / (d - c)
 
 
-# Üyelik fonksiyonları tanımları
-
-# Uyku saatleri (0-12 saat)
-SLEEP_POOR = [0, 0, 4, 6]       # trapmf
-SLEEP_MODERATE = [4, 6, 8]       # trimf
-SLEEP_GOOD = [6, 8, 10, 12]      # trapmf
-
-# Kafein (0-400 mg)
-CAFFEINE_LOW = [0, 0, 50, 100]      # trapmf
-CAFFEINE_MODERATE = [50, 150, 250]   # trimf
-CAFFEINE_HIGH = [200, 350, 400, 400] # trapmf
-
-# Egzersiz (0-120 dakika)
-EXERCISE_LOW = [0, 0, 20, 40]       # trapmf
-EXERCISE_MODERATE = [20, 40, 60]     # trimf
-EXERCISE_HIGH = [40, 80, 120, 120]   # trapmf
-
-# İş stresi (0-10)
-STRESS_LOW = [0, 0, 2, 4]        # trapmf
-STRESS_MODERATE = [2, 4, 6, 8]    # trapmf
-STRESS_HIGH = [6, 8, 10, 10]      # trapmf
-
-# Çıktı: Genel stres seviyesi (0-100)
-OUTPUT_STRESS_LOW = [0, 0, 20, 40]       # trapmf
-OUTPUT_STRESS_MODERATE = [20, 40, 60, 80] # trapmf
-OUTPUT_STRESS_HIGH = [60, 80, 100, 100]   # trapmf
-
-# Çıktı: Uyku kalitesi (0-100)
-OUTPUT_QUALITY_POOR = [0, 0, 30, 50]      # trapmf
-OUTPUT_QUALITY_MODERATE = [30, 50, 70]     # trimf
-OUTPUT_QUALITY_GOOD = [50, 70, 100, 100]   # trapmf
+def trimf(x: float, params: List[float]) -> float:
+    """
+    Triangular membership function
+    params = [a, b, c] where a <= b <= c
+    """
+    a, b, c = params
+    if x <= a or x >= c:
+        return 0.0
+    elif x == b:
+        return 1.0
+    elif a < x < b:
+        return (x - a) / (b - a)
+    else:  # b < x < c
+        return (c - x) / (c - b)
 
 
-# Fuzzy Kurallar
-FUZZY_RULES = [
-    # Kural 1: İyi uyku + düşük kafein + yüksek egzersiz + düşük stres → düşük stres çıktısı, iyi uyku kalitesi
-    {
-        'id': 1,
-        'conditions': {
-            'sleep': 'good',
-            'caffeine': 'low',
-            'exercise': 'high',
-            'work_stress': 'low'
-        },
-        'outputs': {
-            'stress': 'low',
-            'quality': 'good'
-        }
-    },
-    # Kural 2: Kötü uyku + yüksek kafein + düşük egzersiz + yüksek stres → yüksek stres, düşük kalite
-    {
-        'id': 2,
-        'conditions': {
-            'sleep': 'poor',
-            'caffeine': 'high',
-            'exercise': 'low',
-            'work_stress': 'high'
-        },
-        'outputs': {
-            'stress': 'high',
-            'quality': 'poor'
-        }
-    },
-    # Kural 3: Orta uyku + orta kafein + orta egzersiz + orta stres → orta stres, orta kalite
-    {
-        'id': 3,
-        'conditions': {
-            'sleep': 'moderate',
-            'caffeine': 'moderate',
-            'exercise': 'moderate',
-            'work_stress': 'moderate'
-        },
-        'outputs': {
-            'stress': 'moderate',
-            'quality': 'moderate'
-        }
-    },
-    # Kural 4: İyi uyku + düşük stres → iyi kalite (kafein ve egzersiz önemsiz)
-    {
-        'id': 4,
-        'conditions': {
-            'sleep': 'good',
-            'work_stress': 'low'
-        },
-        'outputs': {
-            'stress': 'low',
-            'quality': 'good'
-        }
-    },
-    # Kural 5: Kötü uyku + yüksek stres → yüksek stres çıktısı, kötü kalite
-    {
-        'id': 5,
-        'conditions': {
-            'sleep': 'poor',
-            'work_stress': 'high'
-        },
-        'outputs': {
-            'stress': 'high',
-            'quality': 'poor'
-        }
-    },
-    # Kural 6: Yüksek kafein + düşük egzersiz → yüksek stres
-    {
-        'id': 6,
-        'conditions': {
-            'caffeine': 'high',
-            'exercise': 'low'
-        },
-        'outputs': {
-            'stress': 'high',
-            'quality': 'moderate'
-        }
-    },
-    # Kural 7: Yüksek egzersiz + düşük kafein → düşük stres, iyi kalite
-    {
-        'id': 7,
-        'conditions': {
-            'exercise': 'high',
-            'caffeine': 'low'
-        },
-        'outputs': {
-            'stress': 'low',
-            'quality': 'good'
-        }
-    },
-    # Kural 8: Orta uyku + yüksek stres → orta-yüksek stres çıktısı
-    {
-        'id': 8,
-        'conditions': {
-            'sleep': 'moderate',
-            'work_stress': 'high'
-        },
-        'outputs': {
-            'stress': 'high',
-            'quality': 'moderate'
-        }
-    },
-]
+# Girdi değişkenleri tanımları (README'ye göre)
+
+# sleep_hours (0-12): low(0-6), medium(5-9), high(8-12)
+SLEEP_LOW = [0, 0, 4, 6]          # trapmf
+SLEEP_MEDIUM = [5, 6.5, 8, 9]     # trapmf  
+SLEEP_HIGH = [8, 9, 12, 12]       # trapmf
+
+# caffeine_mg (0-500): low(0-150), medium(100-300), high(250-500)
+CAFFEINE_LOW = [0, 0, 100, 150]        # trapmf
+CAFFEINE_MEDIUM = [100, 175, 225, 300] # trapmf
+CAFFEINE_HIGH = [250, 350, 500, 500]   # trapmf
+
+# exercise_min (0-120): low(0-30), medium(20-70), high(60-120)
+EXERCISE_LOW = [0, 0, 20, 30]         # trapmf
+EXERCISE_MEDIUM = [20, 40, 55, 70]    # trapmf
+EXERCISE_HIGH = [60, 80, 120, 120]    # trapmf
+
+# work_stress (0-10): low(0-4), medium(3-7), high(6-10)
+WORK_LOW = [0, 0, 2, 4]           # trapmf
+WORK_MEDIUM = [3, 4.5, 5.5, 7]    # trapmf
+WORK_HIGH = [6, 7.5, 10, 10]      # trapmf
+
+# environmental_score (0-100): bad(0-50), medium(40-80), good(70-100)
+ENV_BAD = [0, 0, 30, 50]          # trapmf
+ENV_MEDIUM = [40, 55, 65, 80]     # trapmf
+ENV_GOOD = [70, 85, 100, 100]     # trapmf
+
+# Çıktı değişkenleri tanımları (README'ye göre)
+
+# stress (0-100): low(0-35), medium(30-70), high(60-100)
+OUTPUT_STRESS_LOW = [0, 0, 20, 35]       # trapmf
+OUTPUT_STRESS_MEDIUM = [30, 45, 55, 70]  # trapmf
+OUTPUT_STRESS_HIGH = [60, 75, 100, 100]  # trapmf
+
+# sleep_quality (0-100): poor(0-40), average(30-70), good(60-100)
+OUTPUT_QUALITY_POOR = [0, 0, 25, 40]      # trapmf
+OUTPUT_QUALITY_AVERAGE = [30, 45, 55, 70] # trapmf
+OUTPUT_QUALITY_GOOD = [60, 75, 100, 100]  # trapmf
 
 
-# Kural açıklamaları
+# 10 Fuzzy Kurallar (README'ye göre)
 RULE_DESCRIPTIONS = {
-    1: "İyi uyku, düşük kafein, yüksek egzersiz ve düşük iş stresi → Düşük stres, iyi uyku kalitesi",
-    2: "Kötü uyku, yüksek kafein, düşük egzersiz ve yüksek iş stresi → Yüksek stres, kötü uyku kalitesi",
-    3: "Orta seviye tüm parametreler → Orta stres ve uyku kalitesi",
-    4: "İyi uyku ve düşük iş stresi → Düşük stres, iyi uyku kalitesi",
-    5: "Kötü uyku ve yüksek iş stresi → Yüksek stres, kötü uyku kalitesi",
-    6: "Yüksek kafein ve düşük egzersiz → Yüksek stres",
-    7: "Yüksek egzersiz ve düşük kafein → Düşük stres, iyi kalite",
-    8: "Orta uyku ve yüksek iş stresi → Yüksek stres"
+    'R1': 'IF (sleep = low) OR (caffeine = high) THEN stress = high',
+    'R2': 'IF (sleep = low) AND ((exercise = low) OR (work = high)) THEN stress = high',
+    'R3': 'IF (sleep = high) AND (exercise = high) AND (work = low) THEN stress = low',
+    'R4': 'IF (sleep = low) OR (caffeine = high) OR (work = high) THEN sleep_quality = poor',
+    'R5': 'IF (sleep = medium) AND (exercise = medium) THEN sleep_quality = average',
+    'R6': 'IF (sleep = high) AND (exercise = high) AND (caffeine = low) THEN sleep_quality = good',
+    'R7': 'IF (work = high) AND (sleep = medium) THEN stress = medium',
+    'R8': 'IF (environmental_score = bad) THEN stress = high',
+    'R9': 'IF (environmental_score = bad) THEN sleep_quality = poor',
+    'R10': 'IF (environmental_score = good) THEN stress = low'
 }
 
 
-def fuzzify(value, membership_funcs):
+def fuzzify(value: float, variable_name: str) -> Dict[str, float]:
     """
-    Bir girdi değerini fuzzy setlere dönüştür
-    Returns: dict with membership degrees
-    """
-    result = {}
-    for name, params in membership_funcs.items():
-        if len(params) == 3:
-            result[name] = trimf(value, params)
-        elif len(params) == 4:
-            result[name] = trapmf(value, params)
-    return result
-
-
-def evaluate_rule(rule, fuzzy_inputs):
-    """
-    Bir kuralın aktivasyon derecesini hesapla (AND operatörü: minimum)
-    """
-    activations = []
+    Üyelik derecelerini hesapla (fuzzification)
     
-    for input_name, fuzzy_value in rule['conditions'].items():
-        if input_name in fuzzy_inputs:
-            activations.append(fuzzy_inputs[input_name].get(fuzzy_value, 0.0))
+    Args:
+        value: Girdi değeri
+        variable_name: Değişken adı ('sleep', 'caffeine', 'exercise', 'work', 'environmental')
     
-    if not activations:
-        return 0.0
-    
-    # AND operatörü: minimum
-    return min(activations)
-
-
-def defuzzify_centroid(output_memberships):
+    Returns:
+        dict: Üyelik dereceleri
     """
-    Centroid (ağırlık merkezi) yöntemi ile defuzzification
+    memberships = {}
+    
+    if variable_name == 'sleep':
+        memberships['low'] = trapmf(value, SLEEP_LOW)
+        memberships['medium'] = trapmf(value, SLEEP_MEDIUM)
+        memberships['high'] = trapmf(value, SLEEP_HIGH)
+    
+    elif variable_name == 'caffeine':
+        memberships['low'] = trapmf(value, CAFFEINE_LOW)
+        memberships['medium'] = trapmf(value, CAFFEINE_MEDIUM)
+        memberships['high'] = trapmf(value, CAFFEINE_HIGH)
+    
+    elif variable_name == 'exercise':
+        memberships['low'] = trapmf(value, EXERCISE_LOW)
+        memberships['medium'] = trapmf(value, EXERCISE_MEDIUM)
+        memberships['high'] = trapmf(value, EXERCISE_HIGH)
+    
+    elif variable_name == 'work':
+        memberships['low'] = trapmf(value, WORK_LOW)
+        memberships['medium'] = trapmf(value, WORK_MEDIUM)
+        memberships['high'] = trapmf(value, WORK_HIGH)
+    
+    elif variable_name == 'environmental':
+        memberships['bad'] = trapmf(value, ENV_BAD)
+        memberships['medium'] = trapmf(value, ENV_MEDIUM)
+        memberships['good'] = trapmf(value, ENV_GOOD)
+    
+    return memberships
+
+
+def apply_rules(memberships: Dict[str, Dict[str, float]]) -> Tuple[Dict[str, float], Dict[str, float], List[str]]:
+    """
+    10 kuralı uygula ve aktif kuralları belirle
+    
+    Args:
+        memberships: Tüm girdiler için üyelik dereceleri
+    
+    Returns:
+        tuple: (stress_outputs, quality_outputs, active_rules)
+    """
+    sleep = memberships['sleep']
+    caffeine = memberships['caffeine']
+    exercise = memberships['exercise']
+    work = memberships['work']
+    env = memberships.get('environmental', {'bad': 0, 'medium': 0, 'good': 0})
+    
+    stress_outputs = {'low': 0.0, 'medium': 0.0, 'high': 0.0}
+    quality_outputs = {'poor': 0.0, 'average': 0.0, 'good': 0.0}
+    active_rules = []
+    
+    # R1: IF (sleep = low) OR (caffeine = high) THEN stress = high
+    r1_activation = max(sleep['low'], caffeine['high'])
+    if r1_activation > 0.01:
+        active_rules.append('R1')
+        stress_outputs['high'] = max(stress_outputs['high'], r1_activation)
+    
+    # R2: IF (sleep = low) AND ((exercise = low) OR (work = high)) THEN stress = high
+    r2_activation = min(sleep['low'], max(exercise['low'], work['high']))
+    if r2_activation > 0.01:
+        active_rules.append('R2')
+        stress_outputs['high'] = max(stress_outputs['high'], r2_activation)
+    
+    # R3: IF (sleep = high) AND (exercise = high) AND (work = low) THEN stress = low
+    r3_activation = min(sleep['high'], exercise['high'], work['low'])
+    if r3_activation > 0.01:
+        active_rules.append('R3')
+        stress_outputs['low'] = max(stress_outputs['low'], r3_activation)
+    
+    # R4: IF (sleep = low) OR (caffeine = high) OR (work = high) THEN sleep_quality = poor
+    r4_activation = max(sleep['low'], caffeine['high'], work['high'])
+    if r4_activation > 0.01:
+        active_rules.append('R4')
+        quality_outputs['poor'] = max(quality_outputs['poor'], r4_activation)
+    
+    # R5: IF (sleep = medium) AND (exercise = medium) THEN sleep_quality = average
+    r5_activation = min(sleep['medium'], exercise['medium'])
+    if r5_activation > 0.01:
+        active_rules.append('R5')
+        quality_outputs['average'] = max(quality_outputs['average'], r5_activation)
+    
+    # R6: IF (sleep = high) AND (exercise = high) AND (caffeine = low) THEN sleep_quality = good
+    r6_activation = min(sleep['high'], exercise['high'], caffeine['low'])
+    if r6_activation > 0.01:
+        active_rules.append('R6')
+        quality_outputs['good'] = max(quality_outputs['good'], r6_activation)
+    
+    # R7: IF (work = high) AND (sleep = medium) THEN stress = medium
+    r7_activation = min(work['high'], sleep['medium'])
+    if r7_activation > 0.01:
+        active_rules.append('R7')
+        stress_outputs['medium'] = max(stress_outputs['medium'], r7_activation)
+    
+    # R8: IF (environmental_score = bad) THEN stress = high
+    r8_activation = env['bad']
+    if r8_activation > 0.01:
+        active_rules.append('R8')
+        stress_outputs['high'] = max(stress_outputs['high'], r8_activation)
+    
+    # R9: IF (environmental_score = bad) THEN sleep_quality = poor
+    r9_activation = env['bad']
+    if r9_activation > 0.01:
+        active_rules.append('R9')
+        quality_outputs['poor'] = max(quality_outputs['poor'], r9_activation)
+    
+    # R10: IF (environmental_score = good) THEN stress = low
+    r10_activation = env['good']
+    if r10_activation > 0.01:
+        active_rules.append('R10')
+        stress_outputs['low'] = max(stress_outputs['low'], r10_activation)
+    
+    return stress_outputs, quality_outputs, active_rules
+
+
+def defuzzify(rule_outputs: Dict[str, float], output_type: str = 'stress') -> float:
+    """
+    Centroid defuzzification yöntemi
+    
+    Args:
+        rule_outputs: Kural çıktıları (örn: {'low': 0.5, 'medium': 0.3, 'high': 0.8})
+        output_type: 'stress' veya 'quality'
+    
+    Returns:
+        float: Defuzzified değer (0-100)
     """
     # 0-100 aralığında örnekle
     x_range = np.linspace(0, 100, 1000)
-    
-    # Tüm kuralların çıktı membership fonksiyonlarını birleştir
     aggregated = np.zeros_like(x_range)
     
-    for mf_name, activation in output_memberships.items():
+    # Output membership fonksiyonlarını birleştir
+    for level, activation in rule_outputs.items():
         if activation > 0:
-            # Her x değeri için membership derecesini hesapla
-            if mf_name == 'low':
-                params = OUTPUT_STRESS_LOW
-            elif mf_name == 'moderate':
-                params = OUTPUT_STRESS_MODERATE
-            elif mf_name == 'high':
-                params = OUTPUT_STRESS_HIGH
-            elif mf_name == 'poor':
-                params = OUTPUT_QUALITY_POOR
-            elif mf_name == 'good':
-                params = OUTPUT_QUALITY_GOOD
-            else:
-                continue
+            # Membership fonksiyonunu seç
+            if output_type == 'stress':
+                if level == 'low':
+                    params = OUTPUT_STRESS_LOW
+                elif level == 'medium':
+                    params = OUTPUT_STRESS_MEDIUM
+                else:  # high
+                    params = OUTPUT_STRESS_HIGH
+            else:  # quality
+                if level == 'poor':
+                    params = OUTPUT_QUALITY_POOR
+                elif level == 'average':
+                    params = OUTPUT_QUALITY_AVERAGE
+                else:  # good
+                    params = OUTPUT_QUALITY_GOOD
             
-            if len(params) == 3:
-                mf_values = np.array([trimf(x, params) for x in x_range])
-            elif len(params) == 4:
-                mf_values = np.array([trapmf(x, params) for x in x_range])
+            # Her x için membership değerini hesapla
+            mf_values = np.array([trapmf(x, params) for x in x_range])
             
             # Mamdani implication: minimum
             clipped = np.minimum(mf_values, activation)
@@ -273,219 +271,168 @@ def defuzzify_centroid(output_memberships):
     
     # Centroid hesapla
     if np.sum(aggregated) == 0:
-        return DEFAULT_DEFUZZ_VALUE  # Default value
+        return 50.0  # Default value
     
     centroid = np.sum(x_range * aggregated) / np.sum(aggregated)
-    return centroid
+    return float(centroid)
 
 
-def defuzzify_quality_centroid(output_memberships):
-    """
-    Uyku kalitesi için centroid defuzzification
-    """
-    x_range = np.linspace(0, 100, 1000)
-    aggregated = np.zeros_like(x_range)
-    
-    for mf_name, activation in output_memberships.items():
-        if activation > 0:
-            if mf_name == 'poor':
-                params = OUTPUT_QUALITY_POOR
-            elif mf_name == 'moderate':
-                params = OUTPUT_QUALITY_MODERATE
-            elif mf_name == 'good':
-                params = OUTPUT_QUALITY_GOOD
-            else:
-                continue
-            
-            if len(params) == 3:
-                mf_values = np.array([trimf(x, params) for x in x_range])
-            elif len(params) == 4:
-                mf_values = np.array([trapmf(x, params) for x in x_range])
-            
-            clipped = np.minimum(mf_values, activation)
-            aggregated = np.maximum(aggregated, clipped)
-    
-    if np.sum(aggregated) == 0:
-        return DEFAULT_DEFUZZ_VALUE
-    
-    centroid = np.sum(x_range * aggregated) / np.sum(aggregated)
-    return centroid
-
-
-def analyze(inputs):
+def analyze(
+    sleep_hours: float,
+    caffeine_mg: float,
+    exercise_min: float,
+    work_stress: float,
+    environmental_score: float = 50.0
+) -> Dict:
     """
     Ana fuzzy analiz fonksiyonu
     
     Args:
-        inputs: dict with keys: sleep_hours, caffeine_mg, exercise_min, work_stress
+        sleep_hours: Uyku saatleri (0-12)
+        caffeine_mg: Kafein miktarı (0-500)
+        exercise_min: Egzersiz dakikası (0-120)
+        work_stress: İş stresi (0-10)
+        environmental_score: Çevresel skor (0-100), opsiyonel
     
     Returns:
-        dict with analysis results
+        dict: Analiz sonuçları
     """
     try:
-        # Girdileri al
-        sleep_hours = float(inputs.get('sleep_hours', 7))
-        caffeine_mg = float(inputs.get('caffeine_mg', 100))
-        exercise_min = float(inputs.get('exercise_min', 30))
-        work_stress = float(inputs.get('work_stress', 5))
-        
         # Fuzzification
-        sleep_fuzzy = fuzzify(sleep_hours, {
-            'poor': SLEEP_POOR,
-            'moderate': SLEEP_MODERATE,
-            'good': SLEEP_GOOD
-        })
-        
-        caffeine_fuzzy = fuzzify(caffeine_mg, {
-            'low': CAFFEINE_LOW,
-            'moderate': CAFFEINE_MODERATE,
-            'high': CAFFEINE_HIGH
-        })
-        
-        exercise_fuzzy = fuzzify(exercise_min, {
-            'low': EXERCISE_LOW,
-            'moderate': EXERCISE_MODERATE,
-            'high': EXERCISE_HIGH
-        })
-        
-        work_stress_fuzzy = fuzzify(work_stress, {
-            'low': STRESS_LOW,
-            'moderate': STRESS_MODERATE,
-            'high': STRESS_HIGH
-        })
-        
-        fuzzy_inputs = {
-            'sleep': sleep_fuzzy,
-            'caffeine': caffeine_fuzzy,
-            'exercise': exercise_fuzzy,
-            'work_stress': work_stress_fuzzy
+        memberships = {
+            'sleep': fuzzify(sleep_hours, 'sleep'),
+            'caffeine': fuzzify(caffeine_mg, 'caffeine'),
+            'exercise': fuzzify(exercise_min, 'exercise'),
+            'work': fuzzify(work_stress, 'work'),
+            'environmental': fuzzify(environmental_score, 'environmental')
         }
         
-        # Kural değerlendirmesi
-        stress_outputs = {'low': 0, 'moderate': 0, 'high': 0}
-        quality_outputs = {'poor': 0, 'moderate': 0, 'good': 0}
-        active_rules = []
-        
-        for rule in FUZZY_RULES:
-            activation = evaluate_rule(rule, fuzzy_inputs)
-            
-            if activation > ACTIVATION_THRESHOLD:  # Threshold
-                active_rules.append(rule['id'])
-                
-                # Çıktı üyelik derecelerini güncelle (max aggregation)
-                stress_out = rule['outputs'].get('stress')
-                if stress_out:
-                    stress_outputs[stress_out] = max(stress_outputs[stress_out], activation)
-                
-                quality_out = rule['outputs'].get('quality')
-                if quality_out:
-                    quality_outputs[quality_out] = max(quality_outputs[quality_out], activation)
+        # Kuralları uygula
+        stress_outputs, quality_outputs, active_rules = apply_rules(memberships)
         
         # Defuzzification
-        stress_level = defuzzify_centroid(stress_outputs)
-        sleep_quality = defuzzify_quality_centroid(quality_outputs)
+        stress_result = defuzzify(stress_outputs, 'stress')
+        quality_result = defuzzify(quality_outputs, 'quality')
         
         return {
-            'stress_level': round(stress_level, 2),
-            'sleep_quality': round(sleep_quality, 2),
+            'stress': round(stress_result, 2),
+            'sleep_quality': round(quality_result, 2),
             'active_rules': active_rules,
-            'fuzzy_memberships': {
-                'sleep': sleep_fuzzy,
-                'caffeine': caffeine_fuzzy,
-                'exercise': exercise_fuzzy,
-                'work_stress': work_stress_fuzzy
-            },
-            'stress_outputs': stress_outputs,
-            'quality_outputs': quality_outputs
+            'memberships': {
+                'sleep': memberships['sleep'],
+                'caffeine': memberships['caffeine'],
+                'exercise': memberships['exercise'],
+                'work': memberships['work'],
+                'environmental': memberships['environmental']
+            }
         }
-        
+    
     except Exception as e:
         return {
             'error': str(e),
-            'stress_level': 50,
-            'sleep_quality': 50,
+            'stress': 50.0,
+            'sleep_quality': 50.0,
             'active_rules': []
         }
 
 
-def get_membership_plots():
+def plot_membership_functions() -> str:
     """
-    Üyelik fonksiyonlarının görselleştirmesi
-    Returns: base64 encoded PNG
+    Üyelik fonksiyonlarını görselleştir
+    
+    Returns:
+        str: Base64 encoded PNG
     """
-    fig, axes = plt.subplots(3, 2, figsize=(14, 12))
+    fig, axes = plt.subplots(3, 3, figsize=(16, 12))
     fig.suptitle('Bulanık Mantık Üyelik Fonksiyonları', fontsize=16, fontweight='bold')
     
     # Uyku saatleri
     ax = axes[0, 0]
-    x_sleep = np.linspace(0, 12, 300)
-    ax.plot(x_sleep, [trapmf(x, SLEEP_POOR) for x in x_sleep], 'r-', linewidth=2, label='Kötü')
-    ax.plot(x_sleep, [trimf(x, SLEEP_MODERATE) for x in x_sleep], 'y-', linewidth=2, label='Orta')
-    ax.plot(x_sleep, [trapmf(x, SLEEP_GOOD) for x in x_sleep], 'g-', linewidth=2, label='İyi')
-    ax.set_title('Uyku Saatleri', fontweight='bold')
-    ax.set_xlabel('Saat')
-    ax.set_ylabel('Üyelik Derecesi')
+    x = np.linspace(0, 12, 300)
+    ax.plot(x, [trapmf(v, SLEEP_LOW) for v in x], 'r-', linewidth=2, label='Low (0-6)')
+    ax.plot(x, [trapmf(v, SLEEP_MEDIUM) for v in x], 'y-', linewidth=2, label='Medium (5-9)')
+    ax.plot(x, [trapmf(v, SLEEP_HIGH) for v in x], 'g-', linewidth=2, label='High (8-12)')
+    ax.set_title('Sleep Hours (0-12)', fontweight='bold')
+    ax.set_xlabel('Hours')
+    ax.set_ylabel('Membership')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
     # Kafein
     ax = axes[0, 1]
-    x_caffeine = np.linspace(0, 400, 300)
-    ax.plot(x_caffeine, [trapmf(x, CAFFEINE_LOW) for x in x_caffeine], 'g-', linewidth=2, label='Düşük')
-    ax.plot(x_caffeine, [trimf(x, CAFFEINE_MODERATE) for x in x_caffeine], 'y-', linewidth=2, label='Orta')
-    ax.plot(x_caffeine, [trapmf(x, CAFFEINE_HIGH) for x in x_caffeine], 'r-', linewidth=2, label='Yüksek')
-    ax.set_title('Kafein (mg)', fontweight='bold')
+    x = np.linspace(0, 500, 300)
+    ax.plot(x, [trapmf(v, CAFFEINE_LOW) for v in x], 'g-', linewidth=2, label='Low (0-150)')
+    ax.plot(x, [trapmf(v, CAFFEINE_MEDIUM) for v in x], 'y-', linewidth=2, label='Medium (100-300)')
+    ax.plot(x, [trapmf(v, CAFFEINE_HIGH) for v in x], 'r-', linewidth=2, label='High (250-500)')
+    ax.set_title('Caffeine (0-500 mg)', fontweight='bold')
     ax.set_xlabel('mg')
-    ax.set_ylabel('Üyelik Derecesi')
+    ax.set_ylabel('Membership')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
     # Egzersiz
-    ax = axes[1, 0]
-    x_exercise = np.linspace(0, 120, 300)
-    ax.plot(x_exercise, [trapmf(x, EXERCISE_LOW) for x in x_exercise], 'r-', linewidth=2, label='Düşük')
-    ax.plot(x_exercise, [trimf(x, EXERCISE_MODERATE) for x in x_exercise], 'y-', linewidth=2, label='Orta')
-    ax.plot(x_exercise, [trapmf(x, EXERCISE_HIGH) for x in x_exercise], 'g-', linewidth=2, label='Yüksek')
-    ax.set_title('Egzersiz (dakika)', fontweight='bold')
-    ax.set_xlabel('Dakika')
-    ax.set_ylabel('Üyelik Derecesi')
+    ax = axes[0, 2]
+    x = np.linspace(0, 120, 300)
+    ax.plot(x, [trapmf(v, EXERCISE_LOW) for v in x], 'r-', linewidth=2, label='Low (0-30)')
+    ax.plot(x, [trapmf(v, EXERCISE_MEDIUM) for v in x], 'y-', linewidth=2, label='Medium (20-70)')
+    ax.plot(x, [trapmf(v, EXERCISE_HIGH) for v in x], 'g-', linewidth=2, label='High (60-120)')
+    ax.set_title('Exercise (0-120 min)', fontweight='bold')
+    ax.set_xlabel('Minutes')
+    ax.set_ylabel('Membership')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
     # İş stresi
-    ax = axes[1, 1]
-    x_stress = np.linspace(0, 10, 300)
-    ax.plot(x_stress, [trapmf(x, STRESS_LOW) for x in x_stress], 'g-', linewidth=2, label='Düşük')
-    ax.plot(x_stress, [trapmf(x, STRESS_MODERATE) for x in x_stress], 'y-', linewidth=2, label='Orta')
-    ax.plot(x_stress, [trapmf(x, STRESS_HIGH) for x in x_stress], 'r-', linewidth=2, label='Yüksek')
-    ax.set_title('İş Stresi', fontweight='bold')
-    ax.set_xlabel('Seviye (0-10)')
-    ax.set_ylabel('Üyelik Derecesi')
+    ax = axes[1, 0]
+    x = np.linspace(0, 10, 300)
+    ax.plot(x, [trapmf(v, WORK_LOW) for v in x], 'g-', linewidth=2, label='Low (0-4)')
+    ax.plot(x, [trapmf(v, WORK_MEDIUM) for v in x], 'y-', linewidth=2, label='Medium (3-7)')
+    ax.plot(x, [trapmf(v, WORK_HIGH) for v in x], 'r-', linewidth=2, label='High (6-10)')
+    ax.set_title('Work Stress (0-10)', fontweight='bold')
+    ax.set_xlabel('Level')
+    ax.set_ylabel('Membership')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
-    # Çıktı: Stres seviyesi
-    ax = axes[2, 0]
-    x_out = np.linspace(0, 100, 300)
-    ax.plot(x_out, [trapmf(x, OUTPUT_STRESS_LOW) for x in x_out], 'g-', linewidth=2, label='Düşük')
-    ax.plot(x_out, [trapmf(x, OUTPUT_STRESS_MODERATE) for x in x_out], 'y-', linewidth=2, label='Orta')
-    ax.plot(x_out, [trapmf(x, OUTPUT_STRESS_HIGH) for x in x_out], 'r-', linewidth=2, label='Yüksek')
-    ax.set_title('Çıktı: Genel Stres Seviyesi', fontweight='bold')
-    ax.set_xlabel('Seviye (0-100)')
-    ax.set_ylabel('Üyelik Derecesi')
+    # Çevresel skor
+    ax = axes[1, 1]
+    x = np.linspace(0, 100, 300)
+    ax.plot(x, [trapmf(v, ENV_BAD) for v in x], 'r-', linewidth=2, label='Bad (0-50)')
+    ax.plot(x, [trapmf(v, ENV_MEDIUM) for v in x], 'y-', linewidth=2, label='Medium (40-80)')
+    ax.plot(x, [trapmf(v, ENV_GOOD) for v in x], 'g-', linewidth=2, label='Good (70-100)')
+    ax.set_title('Environmental Score (0-100)', fontweight='bold')
+    ax.set_xlabel('Score')
+    ax.set_ylabel('Membership')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    
+    # Çıktı: Stres
+    ax = axes[1, 2]
+    x = np.linspace(0, 100, 300)
+    ax.plot(x, [trapmf(v, OUTPUT_STRESS_LOW) for v in x], 'g-', linewidth=2, label='Low (0-35)')
+    ax.plot(x, [trapmf(v, OUTPUT_STRESS_MEDIUM) for v in x], 'y-', linewidth=2, label='Medium (30-70)')
+    ax.plot(x, [trapmf(v, OUTPUT_STRESS_HIGH) for v in x], 'r-', linewidth=2, label='High (60-100)')
+    ax.set_title('Output: Stress (0-100)', fontweight='bold')
+    ax.set_xlabel('Level')
+    ax.set_ylabel('Membership')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
     # Çıktı: Uyku kalitesi
-    ax = axes[2, 1]
-    ax.plot(x_out, [trapmf(x, OUTPUT_QUALITY_POOR) for x in x_out], 'r-', linewidth=2, label='Kötü')
-    ax.plot(x_out, [trimf(x, OUTPUT_QUALITY_MODERATE) for x in x_out], 'y-', linewidth=2, label='Orta')
-    ax.plot(x_out, [trapmf(x, OUTPUT_QUALITY_GOOD) for x in x_out], 'g-', linewidth=2, label='İyi')
-    ax.set_title('Çıktı: Uyku Kalitesi', fontweight='bold')
-    ax.set_xlabel('Kalite (0-100)')
-    ax.set_ylabel('Üyelik Derecesi')
+    ax = axes[2, 0]
+    x = np.linspace(0, 100, 300)
+    ax.plot(x, [trapmf(v, OUTPUT_QUALITY_POOR) for v in x], 'r-', linewidth=2, label='Poor (0-40)')
+    ax.plot(x, [trapmf(v, OUTPUT_QUALITY_AVERAGE) for v in x], 'y-', linewidth=2, label='Average (30-70)')
+    ax.plot(x, [trapmf(v, OUTPUT_QUALITY_GOOD) for v in x], 'g-', linewidth=2, label='Good (60-100)')
+    ax.set_title('Output: Sleep Quality (0-100)', fontweight='bold')
+    ax.set_xlabel('Quality')
+    ax.set_ylabel('Membership')
     ax.legend()
     ax.grid(True, alpha=0.3)
+    
+    # Boş panelleri gizle
+    axes[2, 1].axis('off')
+    axes[2, 2].axis('off')
     
     plt.tight_layout()
     
@@ -497,3 +444,9 @@ def get_membership_plots():
     plt.close()
     
     return img_base64
+
+
+# Backward compatibility için eski fonksiyon isimleri
+def get_membership_plots() -> str:
+    """Backward compatibility için"""
+    return plot_membership_functions()

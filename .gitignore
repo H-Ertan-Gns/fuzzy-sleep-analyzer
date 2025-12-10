@@ -1,19 +1,31 @@
-# Data files
-data/Sleep_health_and_lifestyle_dataset.csv
-data/history.db
-data/*.csv
-
-# Python cache
+# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.Python
 
 # Virtual environment
-.venv/
 venv/
 ENV/
+.env
 env/
+.venv/
+
+# Data files
+data/
+static/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# PDF reports
+*.pdf
 
 # IDE
 .vscode/
@@ -25,6 +37,6 @@ env/
 .DS_Store
 Thumbs.db
 
-# Static files (generated)
-static/validation_*.html
-static/validation_*.png
+# Backup files
+*_backup.py
+*_old.py
