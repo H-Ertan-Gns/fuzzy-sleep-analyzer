@@ -1,6 +1,8 @@
 """
 Gelişmiş Flask API + Dashboard + Model Doğrulama
+Python 3.9 Uyumlu
 """
+from typing import Dict, Optional
 from flask import (
     Flask, request, jsonify, send_file, 
     render_template, send_from_directory
@@ -8,9 +10,14 @@ from flask import (
 from fuzzy_model import analyze, get_membership_plots, RULE_DESCRIPTIONS
 from database import save_analysis, get_history, get_trend_data
 from pdf_report import create_pdf_report
+from external_apis import calculate_environmental_score
 from datetime import datetime
+from dotenv import load_dotenv
 import json
 import os
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -61,10 +68,12 @@ def index():
                 <h3>🔌 API Endpoints:</h3>
                 <ul>
                     <li><b>POST /analyze</b> → Yeni analiz yap</li>
+                    <li><b>POST /analyze-with-environment</b> → 🌤️ Çevresel faktörlerle analiz</li>
                     <li><b>GET /history</b> → Geçmiş kayıtları getir</li>
                     <li><b>GET /trends</b> → Trend analizi</li>
                     <li><b>POST /download-report</b> → PDF rapor indir</li>
                     <li><b>GET /membership-plots</b> → Üyelik fonksiyonları</li>
+                    <li><b>GET /rules</b> → Fuzzy kurallar listesi</li>
                     <li><b>GET /validation-report</b> → ✨ Model doğrulama raporu</li>
                 </ul>
             </div>
@@ -75,28 +84,101 @@ def index():
 
 @app.route("/analyze", methods=["POST"])
 def analyze_route():
+    """Temel analiz endpoint'i"""
     data = request.get_json(force=True, silent=True)
     if not data:
         return jsonify({'error': 'JSON body expected'}), 400
 
-    result = analyze(data)
-    if result.get('error'):
-        return jsonify({'error': result['error']}), 500
+    try:
+        # Parametreleri al
+        sleep_hours = float(data.get('sleep_hours', 7))
+        caffeine_mg = float(data.get('caffeine_mg', 100))
+        exercise_min = float(data.get('exercise_min', 30))
+        work_stress = float(data.get('work_stress', 5))
+        
+        # Analiz yap
+        result = analyze(
+            sleep_hours=sleep_hours,
+            caffeine_mg=caffeine_mg,
+            exercise_min=exercise_min,
+            work_stress=work_stress
+        )
+        
+        if result.get('error'):
+            return jsonify({'error': result['error']}), 500
 
-    result['active_rule_descriptions'] = [
-        {'id': r, 'description': RULE_DESCRIPTIONS[r]} 
-        for r in result.get('active_rules', [])
-    ]
+        result['active_rule_descriptions'] = [
+            {'id': r, 'description': RULE_DESCRIPTIONS[r]} 
+            for r in result.get('active_rules', [])
+        ]
 
-    user_id = data.get('user_id', 'anonymous')
-    record_id = save_analysis(data, result, user_id)
-    result['record_id'] = record_id
+        user_id = data.get('user_id', 'anonymous')
+        record_id = save_analysis(data, result, user_id)
+        result['record_id'] = record_id
 
-    return jsonify({
-        'input': data,
-        'result': result,
-        'timestamp': datetime.now().isoformat()
-    })
+        return jsonify({
+            'input': data,
+            'result': result,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/analyze-with-environment", methods=["POST"])
+def analyze_with_environment():
+    """Çevresel faktörlerle analiz endpoint'i"""
+    data = request.get_json(force=True, silent=True)
+    if not data:
+        return jsonify({'error': 'JSON body expected'}), 400
+
+    try:
+        # Parametreleri al
+        sleep_hours = float(data.get('sleep_hours', 7))
+        caffeine_mg = float(data.get('caffeine_mg', 100))
+        exercise_min = float(data.get('exercise_min', 30))
+        work_stress = float(data.get('work_stress', 5))
+        city = data.get('city', 'Istanbul')
+        
+        # Çevresel skoru hesapla
+        env_data = calculate_environmental_score(city)
+        environmental_score = env_data.get('environmental_score', 50)
+        
+        # Analiz yap
+        result = analyze(
+            sleep_hours=sleep_hours,
+            caffeine_mg=caffeine_mg,
+            exercise_min=exercise_min,
+            work_stress=work_stress,
+            environmental_score=environmental_score
+        )
+        
+        if result.get('error'):
+            return jsonify({'error': result['error']}), 500
+
+        result['active_rule_descriptions'] = [
+            {'id': r, 'description': RULE_DESCRIPTIONS[r]} 
+            for r in result.get('active_rules', [])
+        ]
+        
+        # Çevresel verileri ekle
+        result['environmental_data'] = env_data
+
+        user_id = data.get('user_id', 'anonymous')
+        
+        # Çevresel skoru da kaydet
+        data_with_env = data.copy()
+        data_with_env['environmental_score'] = environmental_score
+        record_id = save_analysis(data_with_env, result, user_id)
+        result['record_id'] = record_id
+
+        return jsonify({
+            'input': data,
+            'result': result,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route("/history")
 def history():

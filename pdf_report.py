@@ -1,8 +1,10 @@
 """
 PDF Rapor Oluşturma
 ReportLab ile analiz sonuçlarını PDF'e dönüştürme
+Python 3.9 Uyumlu
 """
 
+from typing import Dict
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -14,7 +16,7 @@ from datetime import datetime
 import io
 
 
-def create_pdf_report(inputs, results):
+def create_pdf_report(inputs: Dict, results: Dict):
     """
     Analiz sonuçlarını PDF raporuna dönüştür
     
