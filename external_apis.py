@@ -22,13 +22,18 @@ def get_weather_data(city: str) -> Optional[Dict]:
     """
     api_key = os.getenv('OPENWEATHER_API_KEY')
     
+    # Default environmental values (can be overridden via environment variables)
+    DEFAULT_TEMP = float(os.getenv('DEFAULT_TEMPERATURE', '20'))
+    DEFAULT_HUMIDITY = float(os.getenv('DEFAULT_HUMIDITY', '50'))
+    DEFAULT_WEATHER_SCORE = float(os.getenv('DEFAULT_WEATHER_SCORE', '70'))
+    
     if not api_key:
         # API key yoksa default değer dön
         return {
-            'temperature': 20,
-            'humidity': 50,
+            'temperature': DEFAULT_TEMP,
+            'humidity': DEFAULT_HUMIDITY,
             'weather': 'clear',
-            'score': 70
+            'score': DEFAULT_WEATHER_SCORE
         }
     
     try:
@@ -85,12 +90,16 @@ def get_air_quality(city: str) -> Optional[Dict]:
     """
     api_key = os.getenv('AIRVISUAL_API_KEY')
     
+    # Default air quality values (can be overridden via environment variables)
+    DEFAULT_AQI = int(os.getenv('DEFAULT_AQI', '50'))
+    DEFAULT_AIR_SCORE = float(os.getenv('DEFAULT_AIR_SCORE', '75'))
+    
     if not api_key:
         # API key yoksa default değer dön
         return {
-            'aqi': 50,
+            'aqi': DEFAULT_AQI,
             'quality': 'good',
-            'score': 75
+            'score': DEFAULT_AIR_SCORE
         }
     
     try:

@@ -92,12 +92,13 @@ def validate_model(df):
         # Fuzzy model girdilerini hazırla
         inputs = map_to_fuzzy_inputs(row)
         
-        # Fuzzy analiz yap
+        # Fuzzy analiz yap (with default environmental_score)
         output = analyze(
             sleep_hours=inputs['sleep_hours'],
             caffeine_mg=inputs['caffeine_mg'],
             exercise_min=inputs['exercise_min'],
-            work_stress=inputs['work_stress']
+            work_stress=inputs['work_stress'],
+            environmental_score=50.0  # Default neutral environmental score
         )
         
         # Gerçek değerler (Kaggle'dan)

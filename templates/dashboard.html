@@ -431,7 +431,8 @@
         });
         
         function displayResults(result) {
-            // Handle both field names for backward compatibility
+            // TODO: Standardize on single field name (currently using 'stress' in fuzzy_model.py)
+            // Handle both field names for backward compatibility during transition
             const stressLevel = result.stress_level || result.stress;
             const sleepQuality = result.sleep_quality;
             
