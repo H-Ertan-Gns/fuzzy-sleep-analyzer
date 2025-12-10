@@ -71,7 +71,7 @@ def map_to_fuzzy_inputs(row):
     
     # Kafein verisi genelde yok, varsayılan değer
     # BMI veya yaş gibi proxy kullanabilirsin
-    caffeine_mg = 100. 0  # Ortalama tüketim
+    caffeine_mg = 100 # Ortalama tüketim
     
     return {
         'sleep_hours': float(sleep_hours),
