@@ -316,6 +316,14 @@
                     <div class="input-hint">İş stresinizi değerlendirin (0: çok düşük, 10: çok yüksek)</div>
                 </div>
                 
+                <div class="form-group">
+                    <label for="city">🌤️ Şehir (Opsiyonel - Çevresel Analiz İçin)</label>
+                    <input type="text" id="city" name="city" 
+                           placeholder="örn: Istanbul, Ankara, Izmir" 
+                           style="padding: 12px; border: 2px solid #ddd; border-radius: 8px; width: 100%; font-size: 16px;">
+                    <div class="input-hint">Hava durumu, hava kalitesi ve gün ışığı analizi için şehir adı girebilirsiniz</div>
+                </div>
+                
                 <button type="submit" class="btn-analyze" id="btnAnalyze">
                     🔍 Analiz Yap
                 </button>
@@ -377,6 +385,15 @@
                 work_stress: parseFloat(document.getElementById('work_stress').value)
             };
             
+            // Şehir bilgisi varsa ekle
+            const city = document.getElementById('city').value.trim();
+            if (city) {
+                formData.city = city;
+            }
+            
+            // Endpoint seçimi: şehir varsa çevresel analiz, yoksa normal analiz
+            const endpoint = city ? '/analyze-with-environment' : '/analyze';
+            
             // UI güncellemeleri
             document.getElementById('btnAnalyze').disabled = true;
             document.getElementById('loading').style.display = 'block';
@@ -385,7 +402,7 @@
             
             try {
                 // API'ye POST isteği
-                const response = await fetch('/analyze', {
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -414,7 +431,8 @@
         });
         
         function displayResults(result) {
-            const stressLevel = result.stress_level;
+            // Handle both field names for backward compatibility
+            const stressLevel = result.stress_level || result.stress;
             const sleepQuality = result.sleep_quality;
             
             // Stres seviyesi
